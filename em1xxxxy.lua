@@ -1,5 +1,5 @@
 -- =======================================================
--- DRONE WAR | ULTIMATE MORPH-STYLE GUI v4.2 (Extreme Range & Wallbang)
+-- DRONE WAR | ULTIMATE MORPH-STYLE GUI v4.4 (Bring All Enemies)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -40,6 +40,7 @@ local Config = {
     FOV_Enabled = false,
     FOV_Radius = 150,
     Hitbox_Enabled = false,
+    Spinbot_Enabled = false,
     
     Fly_Enabled = false,
     Fly_Speed = 50,
@@ -48,6 +49,8 @@ local Config = {
     Sprint_Speed = 35,
     Noclip_Enabled = false,
     InfJump_Enabled = false,
+    Freecam_Enabled = false,
+    Freecam_Speed = 60,
     
     Binds = {
         ESP = Enum.KeyCode.E,
@@ -56,6 +59,7 @@ local Config = {
         Fly = Enum.KeyCode.X,
         Speed = Enum.KeyCode.C,
         Noclip = Enum.KeyCode.V,
+        Freecam = Enum.KeyCode.Z,
         Menu = Enum.KeyCode.F6
     }
 }
@@ -475,6 +479,7 @@ createToggle(espPage, "Подсветка дронов на карте", Config.
 createToggle(aimPage, "Включить Aim Bot", Config.Aim_Enabled, function(s) Config.Aim_Enabled = s end, "Aim")
 createToggle(aimPage, "Нацеливание сквозь стены (Wallhack)", Config.Aim_Wallhack, function(s) Config.Aim_Wallhack = s end, nil)
 createToggle(aimPage, "Silent Aim (Wallbang + Любое расстояние)", Config.SilentAim_Enabled, function(s) Config.SilentAim_Enabled = s end, "SilentAim")
+createToggle(aimPage, "Spinbot (Вращение персонажа)", Config.Spinbot_Enabled, function(s) Config.Spinbot_Enabled = s end, nil)
 createToggle(aimPage, "Показывать круг FOV", Config.FOV_Enabled, function(s) Config.FOV_Enabled = s end, nil)
 createSlider(aimPage, "Радиус круга FOV", 50, 400, Config.FOV_Radius, function(v) Config.FOV_Radius = v end)
 createToggle(aimPage, "Увеличение хитбоксов врагов", Config.Hitbox_Enabled, function(s) Config.Hitbox_Enabled = s end, nil)
@@ -487,6 +492,8 @@ createSlider(movePage, "Обычная скорость", 16, 200, Config.Normal
 createSlider(movePage, "Ускорение на Shift (Sprint)", 20, 300, Config.Sprint_Speed, function(v) Config.Sprint_Speed = v end)
 createToggle(movePage, "Проход сквозь стены (Noclip)", Config.Noclip_Enabled, function(s) Config.Noclip_Enabled = s end, "Noclip")
 createToggle(movePage, "Бесконечный прыжок (Inf Jump)", Config.InfJump_Enabled, function(s) Config.InfJump_Enabled = s end, nil)
+createToggle(movePage, "Свободная камера (Freecam)", Config.Freecam_Enabled, function(s) Config.Freecam_Enabled = s end, "Freecam")
+createSlider(movePage, "Скорость Freecam", 20, 200, Config.Freecam_Speed, function(v) Config.Freecam_Speed = v end)
 
 -- World & Misc & Teleport
 createButton(miscPage, "⚡ Телепорт к ближайшему врагу", function()
@@ -511,6 +518,21 @@ createButton(miscPage, "⚡ Телепорт к ближайшему врагу"
     end
 end)
 
+createButton(miscPage, "⚡ Телепортировать ВСЕХ врагов ко мне", function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local myCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if not p.Team or p.Team ~= LocalPlayer.Team then
+                    pcall(function()
+                        p.Character.HumanoidRootPart.CFrame = myCFrame + (myCFrame.LookVector * 5)
+                    end)
+                end
+            end
+        end
+    end
+end)
+
 createButton(miscPage, "🔄 Переподключиться (Rejoin Server)", function()
     TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
@@ -528,6 +550,7 @@ createKeybindBtn(bindsPage, "Бинд для Silent Aim", Config.Binds.SilentAim
 createKeybindBtn(bindsPage, "Бинд для Полёта", Config.Binds.Fly, function(k) Config.Binds.Fly = k end)
 createKeybindBtn(bindsPage, "Бинд для SpeedHack", Config.Binds.Speed, function(k) Config.Binds.Speed = k end)
 createKeybindBtn(bindsPage, "Бинд для Noclip", Config.Binds.Noclip, function(k) Config.Binds.Noclip = k end)
+createKeybindBtn(bindsPage, "Бинд для Freecam", Config.Binds.Freecam, function(k) Config.Binds.Freecam = k end)
 createKeybindBtn(bindsPage, "Бинд открытия Меню", Config.Binds.Menu, function(k) Config.Binds.Menu = k end)
 
 local themeHeader = Instance.new("TextLabel")
@@ -607,6 +630,34 @@ RunService.RenderStepped:Connect(function()
     FOVFrame.Visible = Config.FOV_Enabled
 end)
 
+-- Freecam логика
+RunService.RenderStepped:Connect(function(dt)
+    if Config.Freecam_Enabled then
+        Camera.CameraType = Enum.CameraType.Scriptable
+        local move = Vector3.new()
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0, 1, 0) end
+
+        Camera.CFrame = Camera.CFrame + (move * dt * Config.Freecam_Speed)
+    else
+        if Camera.CameraType == Enum.CameraType.Scriptable then
+            Camera.CameraType = Enum.CameraType.Custom
+        end
+    end
+end)
+
+-- Spinbot логика
+RunService.RenderStepped:Connect(function()
+    if Config.Spinbot_Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
+    end
+end)
+
 -- Fly логика
 local flyBV, flyBG
 RunService.RenderStepped:Connect(function()
@@ -681,6 +732,7 @@ end)
 -- Hitbox Extender
 local origSizes = {}
 RunService.RenderStepped:Connect(function()
+    local hrpLocal = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = player.Character.HumanoidRootPart
@@ -821,7 +873,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Silent Aim (Wallbang + Любое расстояние через перехват Raycast)
+-- Silent Aim (Wallbang + Любое расстояние)
 local oldRaycast
 if pcall(function() oldRaycast = hookfunction(workspace.Raycast, function(...) return oldRaycast(...) end) end) then
     oldRaycast = hookfunction(workspace.Raycast, function(self, origin, direction, raycastParams)
@@ -844,7 +896,6 @@ if pcall(function() oldRaycast = hookfunction(workspace.Raycast, function(...) r
                 end
             end
             if closestHead then
-                -- Возвращаем фейковый результат попадания прямо в голову через любые стены с любого расстояния
                 return {
                     Position = closestHead.Position,
                     Instance = closestHead,
@@ -938,6 +989,9 @@ UserInputService.InputBegan:Connect(function(input, gp)
         elseif input.KeyCode == Config.Binds.Noclip then
             Config.Noclip_Enabled = not Config.Noclip_Enabled
             if toggleUpdaters["Noclip"] then toggleUpdaters["Noclip"].setState(Config.Noclip_Enabled) end
+        elseif input.KeyCode == Config.Binds.Freecam then
+            Config.Freecam_Enabled = not Config.Freecam_Enabled
+            if toggleUpdaters["Freecam"] then toggleUpdaters["Freecam"].setState(Config.Freecam_Enabled) end
         end
     end
 end)
